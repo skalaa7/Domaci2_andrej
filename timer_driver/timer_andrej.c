@@ -40,7 +40,7 @@
 #define XIL_AXI_TIMER_CSR_CAPTURE_MODE_MASK 0x00000001
 
 #define BUFF_SIZE 20
-#define DRIVER_NAME "timer"
+#define DRIVER_NAME "timer_andrej"
 #define DEVICE_NAME "xilaxitimer"
 
 MODULE_LICENSE("Dual BSD/GPL");
@@ -136,7 +136,7 @@ static void setup_and_start_timer(unsigned long milliseconds)
 	unsigned int data = 0;
 	timer_load =  milliseconds*100000;
 	timer_load0=timer_load&0x00000000ffffffff;
-	timer_load1=32;
+	timer_load1=timer_load>>32;
 	printk(KERN_INFO "t0=%u, t1=%u\n",timer_load0,timer_load1);
 
 	// Disable timer/counter while configuration is in progress
@@ -170,7 +170,7 @@ static void setup_and_start_timer(unsigned long milliseconds)
 	printk(KERN_INFO "T0=%u, T1=%u\n",ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET),ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET));
 			
 	// Enable interrupts and autoreload, rest should be zero
-	iowrite32(XIL_AXI_TIMER_CSR_ENABLE_INT_MASK ,
+	iowrite32(XIL_AXI_TIMER_CSR_ENABLE_INT_MASK | XIL_AXI_TIMER_CSR_DOWN_COUNT_MASK | XIL_AXI_TIMER_CSR_CASC_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 
 	
@@ -291,19 +291,21 @@ ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_
 	unsigned int hh = 0;
 	unsigned int mm = 0;
 	unsigned int ss = 0;
+	unsigned int seconds=0;
 	unsigned long time=0;
 	unsigned int time0=0;
 	unsigned long time1=0;
 	time0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET);
-	time1 =((unsigned long)ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET))<<32;
+	time1 =ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET)<<32;
 	time = time1+time0;
-	time=time/10000000;
-	dd=time/86400;
-	time=time-dd*86400;
-	hh=time/3600;
-	time=time-hh*3600;
-	mm=time/60;
-	ss=time-mm*60;
+	seconds=time/100000000;
+	printk(KERN_INFO "time=%lu, time0=%u, time1=%lu, = seconds = %u\n",time,time0,time1,seconds);
+	dd=seconds/86400;
+	seconds=seconds-dd*86400;
+	hh=seconds/3600;
+	seconds=seconds-hh*3600;
+	mm=seconds/60;
+	ss=seconds-mm*60;
 	printk(KERN_INFO "%u:%u:%u:%u\n",dd,hh,mm,ss);
 	len = scnprintf(buff,BUFF_SIZE , "%u : %u : %u : %u\n", dd, hh, mm, ss);
 	ret = copy_to_user(buffer, buff, len);

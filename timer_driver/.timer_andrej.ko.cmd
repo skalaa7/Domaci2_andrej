@@ -1,1 +1,0 @@
-cmd_/root/msREAL/Domaci/Domaci2_andrej/timer_driver/timer_andrej.ko := ld -r  -EL -T ./scripts/module-common.lds -T ./arch/arm/kernel/module.lds  --build-id  -o /root/msREAL/Domaci/Domaci2_andrej/timer_driver/timer_andrej.ko /root/msREAL/Domaci/Domaci2_andrej/timer_driver/timer_andrej.o /root/msREAL/Domaci/Domaci2_andrej/timer_driver/timer_andrej.mod.o ;  true
