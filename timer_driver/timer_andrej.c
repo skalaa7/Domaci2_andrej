@@ -9,6 +9,7 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/math64.h>
 
 #include <linux/io.h> //iowrite ioread
 #include <linux/slab.h>//kmalloc kfree
@@ -66,7 +67,7 @@ static struct timer_info *tp = NULL;
 
 
 static irqreturn_t xilaxitimer_isr(int irq,void*dev_id);
-static void setup_and_start_timer(unsigned long milliseconds);
+static void setup_and_start_timer(uint64_t milliseconds);
 static int timer_probe(struct platform_device *pdev);
 static int timer_remove(struct platform_device *pdev);
 int timer_open(struct inode *pinode, struct file *pfile);
@@ -126,17 +127,17 @@ static irqreturn_t xilaxitimer_isr(int irq,void*dev_id)
 //***************************************************
 //HELPER FUNCTION THAT RESETS AND STARTS TIMER WITH PERIOD IN MILISECONDS
 
-static void setup_and_start_timer(unsigned long milliseconds)
+static void setup_and_start_timer(uint64_t milliseconds)
 {
 	// Disable Timer Counter
-	unsigned long timer_load;
-	unsigned int timer_load0;
-	unsigned int timer_load1;
+	uint64_t timer_load;
+	uint32_t timer_load0;
+	uint32_t timer_load1;
 	unsigned int zero = 0;
 	unsigned int data = 0;
 	timer_load =  milliseconds*100000;
-	timer_load0=timer_load&0x00000000ffffffff;
-	timer_load1=timer_load>>32;
+	timer_load0=(uint32_t) (0x00000000FFFFFFFF & timer_load);
+	timer_load1=(uint32_t) (0x00000000FFFFFFFF & (timer_load >> 32));
 	printk(KERN_INFO "t0=%u, t1=%u\n",timer_load0,timer_load1);
 
 	// Disable timer/counter while configuration is in progress
@@ -292,14 +293,14 @@ ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_
 	unsigned int mm = 0;
 	unsigned int ss = 0;
 	unsigned int seconds=0;
-	unsigned long time=0;
-	unsigned int time0=0;
-	unsigned long time1=0;
+	uint64_t time=0;
+	uint32_t time0=0;
+	uint64_t time1=0;
 	time0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET);
-	time1 =ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET)<<32;
+	time1 =((uint64_t)(ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET)))<<32;
 	time = time1+time0;
-	seconds=time/100000000;
-	printk(KERN_INFO "time=%lu, time0=%u, time1=%lu, = seconds = %u\n",time,time0,time1,seconds);
+	seconds=div_u64(time,100000000);
+	printk(KERN_INFO "time=%llu, time0=%u, time1=%llu, = seconds = %u\n",time,time0,time1,seconds);
 	dd=seconds/86400;
 	seconds=seconds-dd*86400;
 	hh=seconds/3600;
